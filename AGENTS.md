@@ -59,6 +59,9 @@ browser.
   The watch's globals are listed in `FIRMWARE_GLOBALS` in `js/app.js`.
 - Use ES5-style code (`var`, `function`) when in doubt. Espruino doesn't support
   every modern JS syntax feature, and the emulator won't catch that.
+- **Declare functions before top-level code calls them.** Espruino doesn't hoist
+  function declarations, so `var t = make();` above `function make() {...}`
+  fails on the watch. The emulator's browser engine hoists, so it won't catch it.
 
 Start from [examples/template.js](examples/template.js), or a closer example in
 [examples/](examples/).
