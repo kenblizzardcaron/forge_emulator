@@ -17,7 +17,7 @@ onto the watch.
 - [Power](concepts/power.md): keeping your face light on the battery
 
 ## Guides
-To be completed - Deploying and publishing watchfaces
+- [Deploying to your watch](guides/deploying-to-watch.md): upload your face from the emulator and send it to the watch with the Ollee Watch app
 
 ## Reference
 - [API reference](api/README.md): every `Ollee.*` call, hook and constant

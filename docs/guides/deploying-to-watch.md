@@ -37,11 +37,11 @@ Ollee Watch app sends it to one of the watch's Forge faces.
    minified script (what the watch runs, up to 8158 bytes) and your original
    source (up to 64 KB). If an app with the same name is already in your
    account, you're asked to confirm, and **Replace** overwrites it.
-5. **In the Ollee Watch app**, open **Forge Apps**, pick your app under
+5. **In the Ollee Watch app**, open **Settings > Forge Apps**, pick your app under
    **My Apps**, choose Forge A, B or C, and tap **Send to watch**.
 
 You can also skip the account: save the script with **Save script**, and load
-the file in the app's Forge Apps screen under **Load from file**.
+the file in the app under **Settings > Forge Apps > Load from file**.
 
 ## After you upload
 

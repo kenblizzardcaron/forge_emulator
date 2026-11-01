@@ -1,7 +1,7 @@
 # Install and run the emulator
 
-The emulator is a static web page. There's nothing to install, just a web
-browser.
+The emulator is a static web page. All you need is a web browser, plus
+[Python](https://www.python.org/downloads/) to host it locally.
 
 ## 1. Get the code
 
@@ -12,11 +12,23 @@ cd forge_emulator
 
 Or download the ZIP from GitHub and unzip it.
 
-## 2. Open it
+## 2. Host it locally
 
-Double-click `index.html`, or drag it into your browser. The editor starts with
-the template face loaded. Use **Load file** to open other examples from the
-`examples/` folder.
+In the `forge_emulator` folder, start a local web server:
+
+```
+python -m http.server 8000
+```
+
+Then open [http://localhost:8000/](http://localhost:8000/) in your browser.
+Leave the server running while you use the emulator, and press Ctrl+C in its
+terminal to stop it. The editor starts with the template face loaded. Use
+**Load file** to open other examples from the `examples/` folder.
+
+You can also double-click `index.html` to open it straight from disk. The
+emulator works the same way, but **Upload** doesn't: uploading to your watch
+needs the page served from `localhost`. See
+[Deploying to your watch](../guides/deploying-to-watch.md).
 
 ## 3. Try it
 
@@ -34,7 +46,7 @@ the template face loaded. Use **Load file** to open other examples from the
 | **Bluetooth** | Plays a phone app writing to the watch, and toggles "phone connected" (which fires `ble_connect()`/`ble_disconnect()`). |
 | **Clock** | Fires minute/hour clock events on demand. |
 | **Databank** | The 10 databank entries `Ollee.databank()` returns. This data is read only, and can be set with the Ollee Watch App. Edit them here to test your face with different text. |
-| **controls** | File name, Load/Save, Run/Stop. |
+| **controls** | File name, Load/Save, Upload (to your Ollee account, for sending to the watch), Run/Stop. |
 | **source** | The script editor, with a size bar showing bytes used against the watch's limit. |
 | **log** | Script output and errors. **Copy log** copies it. |
 

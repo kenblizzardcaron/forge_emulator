@@ -57,6 +57,9 @@ const uploadMinor = document.getElementById('upload-minor');
 const uploadContentSize = document.getElementById('upload-content-size');
 const uploadSourceSize = document.getElementById('upload-source-size');
 const uploadSubmitBtn = document.getElementById('upload-submit-btn');
+const uploadDone = document.getElementById('upload-done');
+const uploadDoneMsg = document.getElementById('upload-done-msg');
+const uploadDoneBtn = document.getElementById('upload-done-btn');
 
 const utf8Length = (text) => new TextEncoder().encode(text).length;
 
@@ -138,6 +141,7 @@ function showUploadView(view) {
   uploadLoading.hidden = view !== 'loading';
   uploadSigninForm.hidden = view !== 'signin';
   uploadDetailsForm.hidden = view !== 'details';
+  uploadDone.hidden = view !== 'done';
 }
 
 function setBusy(busy) {
@@ -356,8 +360,11 @@ uploadDetailsForm.addEventListener('submit', async (e) => {
     });
     saveUploadPrefs(getFileName(), { name, major, minor });
     setBusy(false);
-    uploadDialog.close();
-    log(`Upload: ${replaced ? 'replaced' : 'added'} "${name}" v${major}.${minor} (${contentBytes} bytes) in your Ollee account. In the Ollee Watch app, open Forge Apps > My Apps to send it to your watch.`);
+    // Confirmation stays up until the user clicks OK (or closes the dialog)
+    uploadDoneMsg.textContent = `${replaced ? 'Replaced' : 'Uploaded'} "${name}" v${major}.${minor} (${contentBytes} bytes) ${replaced ? 'in' : 'to'} your Ollee account.`;
+    showUploadView('done');
+    uploadDoneBtn.focus();
+    log(`Upload: ${replaced ? 'replaced' : 'added'} "${name}" v${major}.${minor} (${contentBytes} bytes) in your Ollee account. In the Ollee Watch app, open Settings > Forge Apps > My Apps to send it to your watch.`);
   } catch (err) {
     setBusy(false);
     showUploadMessage(describeFirebaseError(err), 'error');

@@ -77,7 +77,7 @@
         <button id="save-file-btn">Save script</button>
         <button id="minify-btn" class="minify-feature">Minify</button>
         <button id="save-minified-btn" class="minify-feature">Save minified script</button>
-        <button id="upload-btn" type="button" title="Send this face to your Ollee account, ready to send to the watch from the Ollee Watch app">Upload</button>
+        <button id="upload-btn" class="upload-primary-btn" type="button"title="Send this face to your Ollee account, ready to send to the watch from the Ollee Watch app">Upload</button>
       </div>
       <div class="toolbar">
         <button id="run-btn">Run</button>
@@ -126,7 +126,7 @@
       <h2 id="upload-title">Upload to Ollee Watch app</h2>
       <button type="button" class="upload-cancel-btn upload-close-btn" aria-label="Close">&times;</button>
     </div>
-    <p class="upload-intro">Saves this face to your Ollee account. Then open Forge Apps in the Ollee Watch app to send it to your watch.</p>
+    <p class="upload-intro">Saves this face to your Ollee account. Then open Settings &gt; Forge Apps in the Ollee Watch app to send it to your watch.</p>
 
     <p id="upload-loading" class="upload-note" hidden>Connecting to your Ollee account&hellip;</p>
 
@@ -144,7 +144,6 @@
     </form>
 
     <form id="upload-details" class="upload-form" novalidate hidden>
-      <p class="upload-note upload-account-row">Signed in as <span id="upload-account"></span> &middot; <button type="button" id="upload-signout-btn" class="upload-link-btn">Sign out</button></p>
       <label for="upload-name">Name <span id="upload-name-count" class="upload-count"></span></label>
       <input type="text" id="upload-name" maxlength="20" spellcheck="false" required>
       <span class="upload-note">Shown in the app and on the watch. Uploading the same name again replaces that app.</span>
@@ -162,7 +161,19 @@
         <button type="button" class="upload-cancel-btn">Cancel</button>
         <button type="submit" id="upload-submit-btn" class="upload-primary-btn">Upload</button>
       </div>
+      <div class="upload-account-row">
+        <span class="upload-note">Signed in as <span id="upload-account"></span></span>
+        <button type="button" id="upload-signout-btn">Sign out</button>
+      </div>
     </form>
+
+    <div id="upload-done" class="upload-form" hidden>
+      <p id="upload-done-msg" class="upload-done-msg"></p>
+      <p class="upload-note">In the Ollee Watch app, open Settings &gt; Forge Apps &gt; My Apps, pick it and send it to your watch.</p>
+      <div class="upload-actions">
+        <button type="button" id="upload-done-btn" class="upload-cancel-btn upload-primary-btn">OK</button>
+      </div>
+    </div>
 
     <p id="upload-msg" class="upload-msg" role="status" hidden></p>
   </dialog>

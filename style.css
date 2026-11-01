@@ -371,9 +371,19 @@ button:disabled { opacity: 0.4; cursor: default; }
   font-size: 13px;
 }
 .upload-form input:focus { outline: none; border-color: #7eb0e0; }
-.upload-count { float: right; font-size: 12px; }
-.upload-note { margin: 0; font-size: 12px; color: #9aa0a6; }
-.upload-account-row #upload-account { color: #e6e6e6; }
+.upload-count { float: right; }
+/* Body text: the same 13px grey as the page's subtitle and panel notes */
+.upload-note { margin: 0; font-size: 13px; color: #9aa0a6; }
+.upload-account-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #33363d;
+}
+.upload-account-row #upload-account { color: #e6e6e6; overflow-wrap: anywhere; }
 
 .upload-version { display: flex; align-items: center; gap: 6px; }
 .upload-version input { width: 64px; }
@@ -383,7 +393,7 @@ button:disabled { opacity: 0.4; cursor: default; }
   grid-template-columns: 1fr auto;
   gap: 2px 12px;
   margin-top: 8px;
-  font-size: 12px;
+  font-size: 13px;
   color: #9aa0a6;
 }
 .upload-sizes .over { color: #e07e7e; }
@@ -391,7 +401,20 @@ button:disabled { opacity: 0.4; cursor: default; }
 .upload-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 12px; }
 .upload-actions .upload-link-btn { margin-right: auto; }
 .upload-primary-btn { background: #F87029; border-color: #F87029; color: #1b1d21; font-weight: 600; }
-.upload-link-btn { border: none; background: none; padding: 0; font-size: 12px; color: #F87029; }
+/* The Upload buttons (main page and dialog) keep the light text of the other buttons */
+#upload-btn, #upload-submit-btn, #upload-done-btn { color: #e6e6e6; }
+#upload-done-btn { min-width: 72px; }
+
+/* Success step after an upload */
+.upload-done-msg {
+  margin: 0 0 4px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  background: #1f3d2b;
+  color: #7ee08a;
+}
+.upload-link-btn { border: none; background: none; padding: 0; font-size: 13px; color: #F87029; }
 .upload-link-btn:hover { text-decoration: underline; }
 
 .upload-msg { margin: 12px 0 0; padding: 8px 10px; border-radius: 6px; font-size: 13px; background: #1f2b3d; color: #7eb0e0; }
