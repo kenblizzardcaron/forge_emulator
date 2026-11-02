@@ -344,7 +344,7 @@ button:disabled { opacity: 0.4; cursor: default; }
 
 /* Upload dialog (js/forgeUpload.js) */
 .upload-dialog {
-  width: min(420px, calc(100vw - 32px));
+  width: min(600px, calc(100vw - 32px));
   background: #1b1d21;
   color: #e6e6e6;
   border: 1px solid #33363d;
@@ -371,6 +371,53 @@ button:disabled { opacity: 0.4; cursor: default; }
   font-size: 13px;
 }
 .upload-form input:focus { outline: none; border-color: #7eb0e0; }
+.upload-form textarea, .upload-form select {
+  background: #101114;
+  color: #e6e6e6;
+  border: 1px solid #33363d;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 13px;
+}
+.upload-form textarea { resize: vertical; }
+.upload-form textarea:focus, .upload-form select:focus { outline: none; border-color: #7eb0e0; }
+
+/* Send to my watch / Submit to App Store */
+.upload-tabs { display: flex; gap: 4px; margin-bottom: 6px; border-bottom: 1px solid #33363d; }
+.upload-tab {
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: none;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: #9aa0a6;
+}
+.upload-tab:hover { color: #e6e6e6; }
+.upload-tab[aria-selected="true"] { color: #e6e6e6; border-bottom-color: #F87029; }
+
+.upload-form label.upload-check { display: flex; align-items: flex-start; gap: 8px; margin-top: 10px; color: #e6e6e6; }
+.upload-check input { margin: 2px 0 0; flex: none; }
+
+.upload-subhead { margin: 18px 0 2px; padding-top: 12px; border-top: 1px solid #33363d; font-size: 14px; }
+.store-subs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.store-app { border: 1px solid #33363d; border-radius: 6px; font-size: 13px; }
+.store-sub { padding: 8px 10px; }
+.store-app-older { border-top: 1px solid #33363d; }
+.store-app-older summary { padding: 6px 10px; color: #9aa0a6; cursor: pointer; }
+.store-app-older summary:hover { color: #e6e6e6; }
+.store-app-older-list .store-sub { border-top: 1px solid #2a2c31; }
+.store-sub-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.store-sub-name { font-weight: 600; overflow-wrap: anywhere; }
+.store-sub-meta { color: #9aa0a6; margin-top: 2px; }
+.store-sub-notes { margin: 6px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.store-sub .upload-link-btn { margin-top: 6px; }
+.store-status { flex: none; padding: 1px 8px; border-radius: 10px; font-size: 12px; background: #1f2b3d; color: #7eb0e0; }
+.store-status-approved { background: #1f3d2b; color: #7ee08a; }
+.store-status-changes_requested { background: #3d331f; color: #e0c07e; }
+.store-status-rejected { background: #3d1f1f; color: #e07e7e; }
+.store-status-withdrawn { background: #2a2c31; color: #9aa0a6; }
 .upload-count { float: right; }
 /* Body text: the same 13px grey as the page's subtitle and panel notes */
 .upload-note { margin: 0; font-size: 13px; color: #9aa0a6; }
@@ -400,9 +447,8 @@ button:disabled { opacity: 0.4; cursor: default; }
 
 .upload-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 12px; }
 .upload-actions .upload-link-btn { margin-right: auto; }
-.upload-primary-btn { background: #F87029; border-color: #F87029; color: #1b1d21; font-weight: 600; }
-/* The Upload buttons (main page and dialog) keep the light text of the other buttons */
-#upload-btn, #upload-submit-btn, #upload-done-btn { color: #e6e6e6; }
+/* Orange buttons keep the light text of the other buttons */
+.upload-primary-btn { background: #F87029; border-color: #F87029; color: #e6e6e6; font-weight: 600; }
 #upload-done-btn { min-width: 72px; }
 
 /* Success step after an upload */

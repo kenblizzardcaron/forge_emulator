@@ -126,7 +126,7 @@
       <h2 id="upload-title">Upload to Ollee Watch app</h2>
       <button type="button" class="upload-cancel-btn upload-close-btn" aria-label="Close">&times;</button>
     </div>
-    <p class="upload-intro">Saves this face to your Ollee account. Then open Settings &gt; Forge Apps in the Ollee Watch app to send it to your watch.</p>
+    <p id="upload-intro" class="upload-intro">Saves this face to your Ollee account. Then open Settings &gt; Forge Apps in the Ollee Watch app to send it to your watch.</p>
 
     <p id="upload-loading" class="upload-note" hidden>Connecting to your Ollee account&hellip;</p>
 
@@ -143,7 +143,13 @@
       </div>
     </form>
 
-    <form id="upload-details" class="upload-form" novalidate hidden>
+    <div id="upload-signed-in" class="upload-form" hidden>
+    <div class="upload-tabs" role="tablist">
+      <button type="button" role="tab" id="upload-tab-watch" class="upload-tab" aria-controls="upload-details">Send to my watch</button>
+      <button type="button" role="tab" id="upload-tab-store" class="upload-tab" aria-controls="upload-store">Submit to App Store</button>
+    </div>
+
+    <form id="upload-details" class="upload-form" role="tabpanel" aria-labelledby="upload-tab-watch" novalidate hidden>
       <label for="upload-name">Name <span id="upload-name-count" class="upload-count"></span></label>
       <input type="text" id="upload-name" maxlength="20" spellcheck="false" required>
       <span class="upload-note">Shown in the app and on the watch. Uploading the same name again replaces that app.</span>
@@ -161,15 +167,71 @@
         <button type="button" class="upload-cancel-btn">Cancel</button>
         <button type="submit" id="upload-submit-btn" class="upload-primary-btn">Upload</button>
       </div>
-      <div class="upload-account-row">
-        <span class="upload-note">Signed in as <span id="upload-account"></span></span>
-        <button type="button" id="upload-signout-btn">Sign out</button>
-      </div>
     </form>
+
+    <!-- Forge App Store submission (storeSubmissions/{uid}_{slug}_{major}_{minor}) -->
+    <form id="upload-store" class="upload-form" role="tabpanel" aria-labelledby="upload-tab-store" novalidate hidden>
+      <label for="store-name">App name <span id="store-name-count" class="upload-count"></span></label>
+      <input type="text" id="store-name" maxlength="20" spellcheck="false" required>
+      <span class="upload-note">App name shown in the store. All app names must be unique.</span>
+      <label for="store-major">Version</label>
+      <div class="upload-version">
+        <input type="number" id="store-major" min="0" max="99" step="1" aria-label="Major version" required>
+        <span>.</span>
+        <input type="number" id="store-minor" min="0" max="99" step="1" aria-label="Minor version" required>
+      </div>
+      <span class="upload-note">Each submission needs a new version number.</span>
+      <label for="store-developer">Developer name <span id="store-developer-count" class="upload-count"></span></label>
+      <input type="text" id="store-developer" maxlength="40" autocomplete="name" required>
+      <span class="upload-note">Shown publicly with your apps.</span>
+      <label for="store-contact">Contact email</label>
+      <input type="email" id="store-contact" maxlength="254" autocomplete="email" required>
+      <span class="upload-note">Private. Ollee emails you here about your submissions.</span>
+      <label for="store-category">Category</label>
+      <select id="store-category" required>
+        <option value="">Choose a category</option>
+        <option value="daily">Daily</option>
+        <option value="tools">Tools</option>
+        <option value="game">Game</option>
+        <option value="fitness">Fitness</option>
+        <option value="other">Other</option>
+      </select>
+      <label for="store-tags">Tags <span class="upload-count">optional</span></label>
+      <input type="text" id="store-tags" placeholder="moon, astronomy" spellcheck="false">
+      <span class="upload-note">Up to 5, separated by commas.</span>
+      <label for="store-summary">Summary <span id="store-summary-count" class="upload-count"></span></label>
+      <input type="text" id="store-summary" maxlength="120" required>
+      <label for="store-description">Description <span id="store-description-count" class="upload-count"></span></label>
+      <textarea id="store-description" maxlength="2000" rows="5" required></textarea>
+      <span class="upload-note">What it shows and what each button does.</span>
+      <div class="upload-sizes">
+        <span>Minified (sent to the watch)</span><span id="store-content-size"></span>
+        <span>Original source</span><span id="store-source-size"></span>
+      </div>
+      <span class="upload-note">Only Ollee's reviewers see your source. The store distributes the minified script.</span>
+      <label class="upload-check">
+        <input type="checkbox" id="store-terms">
+        <span>I wrote this app or have the right to share it, and I agree that Ollee Watch may review it and distribute it for free in the Forge App Store.</span>
+      </label>
+      <div class="upload-actions">
+        <button type="button" class="upload-cancel-btn">Cancel</button>
+        <button type="submit" id="store-submit-btn" class="upload-primary-btn">Submit for review</button>
+      </div>
+
+      <h3 class="upload-subhead">My submissions</h3>
+      <p id="store-subs-note" class="upload-note"></p>
+      <ul id="store-subs" class="store-subs"></ul>
+    </form>
+
+    <div class="upload-account-row">
+      <span class="upload-note">Signed in as <span id="upload-account"></span></span>
+      <button type="button" id="upload-signout-btn">Sign out</button>
+    </div>
+    </div>
 
     <div id="upload-done" class="upload-form" hidden>
       <p id="upload-done-msg" class="upload-done-msg"></p>
-      <p class="upload-note">In the Ollee Watch app, open Settings &gt; Forge Apps &gt; My Apps, pick it and send it to your watch.</p>
+      <p id="upload-done-note" class="upload-note"></p>
       <div class="upload-actions">
         <button type="button" id="upload-done-btn" class="upload-cancel-btn upload-primary-btn">OK</button>
       </div>
