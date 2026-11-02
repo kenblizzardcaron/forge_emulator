@@ -341,13 +341,27 @@ function loadDefaultExample(text) {
   warnIfOverByteLimit(text, FORGE_SCRIPT_BYTE_LIMIT_WARNING);
 }
 
-fetch(`examples/${DEFAULT_EXAMPLE}`)
-  .then((res) => {
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.text();
-  })
-  .then(loadDefaultExample)
-  .catch(() => loadDefaultExample(DEFAULT_EXAMPLE_FALLBACK));
+// Resolves once the example is in the editor. Review mode (forgeUpload.js)
+// waits for it so the late fetch doesn't overwrite the submission's source,
+// and calls it again on Exit review.
+function loadDefaultExampleScript() {
+  return fetch(`examples/${DEFAULT_EXAMPLE}`)
+    .then((res) => {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.text();
+    })
+    .then(loadDefaultExample)
+    .catch(() => loadDefaultExample(DEFAULT_EXAMPLE_FALLBACK));
+}
+const defaultExampleReady = loadDefaultExampleScript();
+
+// Puts a script in the editor as if it had been loaded from a file.
+function loadEditorScript(text, fileName) {
+  editor.value = text;
+  filenameInput.value = fileName;
+  updateTabLabels();
+  setActiveTab('original'); // also refreshes the size bar
+}
 
 function setStatus(text, cls) {
   statusEl.textContent = text;

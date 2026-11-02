@@ -66,6 +66,28 @@
     </div>
 
     <div class="editor-panel">
+      <!-- Review mode: ?submission=<id> (js/forgeUpload.js) -->
+      <section id="review-banner" class="review-banner" aria-labelledby="review-title" hidden>
+        <div class="review-head">
+          <span id="review-kind" class="review-kind">Review</span>
+          <h2 id="review-title" class="review-title"></h2>
+          <span id="review-status" class="store-status" hidden></span>
+        </div>
+        <p id="review-meta" class="review-meta" hidden></p>
+        <p id="review-msg" class="upload-msg" hidden></p>
+        <ul id="review-checks" class="review-checks" hidden></ul>
+        <details id="review-listing" class="review-listing" hidden>
+          <summary>Store listing</summary>
+          <dl id="review-listing-fields"></dl>
+        </details>
+        <div class="toolbar">
+          <button id="review-run-content-btn" class="upload-primary-btn" type="button" title="Run the minified script exactly as submitted: this is what the store would send to watches" hidden>Run submitted script</button>
+          <button id="review-run-source-btn" type="button" title="Run the source in the editor" hidden>Run source</button>
+          <button id="review-signin-btn" class="upload-primary-btn" type="button" hidden>Sign in</button>
+          <button id="review-exit-btn" class="upload-link-btn review-exit-btn" type="button">Exit review</button>
+        </div>
+      </section>
+
       <span class="panel-label">controls</span>
       <div class="filename-row">
         <label for="filename-input">File name</label>
@@ -208,7 +230,7 @@
         <span>Minified (sent to the watch)</span><span id="store-content-size"></span>
         <span>Original source</span><span id="store-source-size"></span>
       </div>
-      <span class="upload-note">Only Ollee's reviewers see your source. The store distributes the minified script.</span>
+      <span class="upload-note">Only Ollee Watch reviewers see your source. The store distributes the minified script.</span>
       <label class="upload-check">
         <input type="checkbox" id="store-terms">
         <span>I wrote this app or have the right to share it, and I agree that Ollee Watch may review it and distribute it for free in the Forge App Store.</span>

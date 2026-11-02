@@ -293,7 +293,9 @@ function updateDetailsState() {
 
 function fillDetails() {
   const fileName = getFileName();
-  const prefs = loadUploadPrefs()[fileName] || {};
+  // In review mode, default to the submission's own name and version
+  const prefs = loadUploadPrefs()[fileName]
+    || (reviewSub ? { name: reviewSub.name, major: reviewSub.versionMajor, minor: reviewSub.versionMinor } : {});
   uploadName.value = prefs.name || asciiAppName(fileName.replace(/\.js$/i, '')) || 'My Forge App';
   uploadMajor.value = prefs.major ?? 1;
   uploadMinor.value = prefs.minor ?? 0;
@@ -348,6 +350,10 @@ async function openUploadDialog() {
   }
   uploadSource = editor.value;
   uploadContent = editorMinified.value;
+  // Reviewing a submission whose source is unchanged: send exactly what was
+  // submitted, so the watch runs what the store would distribute
+  if (reviewSub && uploadSource === reviewSub.source) uploadContent = reviewSub.content;
+  uploadIntro.textContent = UPLOAD_INTROS[uploadTab];
   showUploadView('loading');
   uploadDialog.showModal();
   try {
@@ -376,6 +382,13 @@ uploadSigninForm.addEventListener('submit', async (e) => {
     await firebase.auth().signInWithEmailAndPassword(uploadEmail.value.trim(), uploadPassword.value);
     uploadPassword.value = '';
     setBusy(false);
+    // Signed in to open a submission (review mode): go back to it
+    const reviewId = reviewPendingId;
+    if (reviewId !== null) {
+      uploadDialog.close();
+      startReview(reviewId);
+      return;
+    }
     showSignedInState();
   } catch (err) {
     setBusy(false);
@@ -679,6 +692,12 @@ function storeSubItem(sub) {
   if (STORE_CATEGORIES[sub.category]) meta.push(STORE_CATEGORIES[sub.category]);
   item.append(createEl('div', 'store-sub-meta', meta.join(' · ')));
   if (sub.reviewNotes) item.append(createEl('p', 'store-sub-notes', `Reviewer: ${sub.reviewNotes}`));
+  // Loads this version's source and runs it (review mode)
+  const open = createEl('button', 'upload-link-btn store-sub-open', 'Open');
+  open.type = 'button';
+  open.title = 'Load this version\'s source into the editor and run what was submitted';
+  open.addEventListener('click', () => openOwnSubmission(sub));
+  item.append(open);
   if (sub.status === 'pending') {
     const withdraw = createEl('button', 'upload-link-btn', 'Withdraw');
     withdraw.type = 'button';
@@ -835,6 +854,267 @@ storeForm.addEventListener('submit', async (e) => {
     else showUploadMessage(describeFirebaseError(err), 'error');
   }
 });
+
+// --- Review mode: ?submission=<id> ---
+//
+// The admin review app's "Open in emulator" links here. The submission's
+// source goes in the editor, a banner shows its details and the checks the
+// emulator can make with its own Terser, and the submitted (minified)
+// content runs, since that's what the store would send to watches. Admins
+// (admins/{uid}) can open any submission; a developer can open their own,
+// from Open under My submissions. Read-only: approving, requesting changes
+// and rejecting happen in the review app.
+
+const reviewBanner = document.getElementById('review-banner');
+const reviewKind = document.getElementById('review-kind');
+const reviewTitle = document.getElementById('review-title');
+const reviewStatus = document.getElementById('review-status');
+const reviewMeta = document.getElementById('review-meta');
+const reviewMsg = document.getElementById('review-msg');
+const reviewChecks = document.getElementById('review-checks');
+const reviewListing = document.getElementById('review-listing');
+const reviewListingFields = document.getElementById('review-listing-fields');
+const reviewRunContentBtn = document.getElementById('review-run-content-btn');
+const reviewRunSourceBtn = document.getElementById('review-run-source-btn');
+const reviewSigninBtn = document.getElementById('review-signin-btn');
+const reviewExitBtn = document.getElementById('review-exit-btn');
+
+const REVIEW_PARAM = 'submission';
+
+// The submission shown in the banner, once loaded
+let reviewSub = null;
+// The submission to open once the user signs in from the dialog
+let reviewPendingId = null;
+// Bumped on every start/exit, so a slow load that's been superseded stops
+let reviewSeq = 0;
+// A submission's source went into the editor, so Exit puts the template back
+// (even if a later Open failed and reviewSub is null)
+let reviewEditorLoaded = false;
+
+function showReviewMessage(text, kind) {
+  reviewMsg.textContent = text || '';
+  reviewMsg.className = `upload-msg${kind ? ` upload-msg-${kind}` : ''}`;
+  reviewMsg.hidden = !text;
+}
+
+// Banner before a submission is loaded (loading, sign-in needed, errors)
+function showReviewShell(id) {
+  reviewSub = null;
+  reviewBanner.hidden = false;
+  reviewKind.textContent = 'Review';
+  reviewTitle.textContent = `Submission ${id}`;
+  reviewStatus.hidden = true;
+  reviewMeta.hidden = true;
+  reviewChecks.hidden = true;
+  reviewListing.hidden = true;
+  reviewRunContentBtn.hidden = true;
+  reviewRunSourceBtn.hidden = true;
+  reviewSigninBtn.hidden = true;
+}
+
+function setReviewUrl(id) {
+  const url = new URL(location.href);
+  if (id) url.searchParams.set(REVIEW_PARAM, id); else url.searchParams.delete(REVIEW_PARAM);
+  history.replaceState(null, '', url);
+}
+
+// File name for the editor: "Moon Phase" v1.2 -> moon_phase_1.2.js
+function reviewFileName(sub) {
+  const base = asciiAppName(sub.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'submission';
+  return `${base}_${sub.versionMajor}.${sub.versionMinor}.js`;
+}
+
+function formatTimestamp(ts) {
+  return ts && ts.toDate
+    ? ts.toDate().toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+    : '';
+}
+
+function openReviewSignin(id) {
+  reviewPendingId = id;
+  showUploadMessage('');
+  showUploadView('signin');
+  uploadIntro.textContent = 'Sign in with your Ollee Watch account to open this submission.';
+  if (!uploadDialog.open) uploadDialog.showModal();
+  uploadEmail.focus();
+}
+
+// Signing in from Upload later shouldn't jump into a review
+uploadDialog.addEventListener('close', () => { reviewPendingId = null; });
+
+async function startReview(id) {
+  const seq = ++reviewSeq;
+  showReviewShell(id);
+  setReviewUrl(id);
+  if (location.protocol === 'file:') {
+    showReviewMessage('Review mode needs the emulator served over HTTP, not opened as a file. In this folder run "python -m http.server 8000", then open http://localhost:8000/?submission=' + id, 'error');
+    return;
+  }
+  if (!id || id.includes('/')) {
+    showReviewMessage('This isn\'t a valid submission ID.', 'error');
+    return;
+  }
+  showReviewMessage('Loading the submission…', 'info');
+  try {
+    await loadFirebase();
+  } catch (e) {
+    if (seq === reviewSeq) showReviewMessage('Couldn\'t load the Firebase library. Check your internet connection.', 'error');
+    return;
+  }
+  if (seq !== reviewSeq) return;
+  const user = firebase.auth().currentUser;
+  if (!user) {
+    showReviewMessage('Sign in to open this submission.', 'info');
+    reviewSigninBtn.hidden = false;
+    openReviewSignin(id);
+    return;
+  }
+
+  const db = firebase.firestore();
+  let isAdmin = false;
+  let sub;
+  try {
+    isAdmin = (await db.collection('admins').doc(user.uid).get()).exists;
+    const snap = await db.collection('storeSubmissions').doc(id).get();
+    if (seq !== reviewSeq) return;
+    if (!snap.exists) {
+      showReviewMessage('There\'s no submission with this ID. It may have been withdrawn and deleted.', 'error');
+      return;
+    }
+    sub = { id: snap.id, ...snap.data() };
+  } catch (err) {
+    if (seq !== reviewSeq) return;
+    showReviewMessage(err && err.code === 'permission-denied'
+      ? `Only Ollee Watch reviewers and the app's developer can open this submission. You're signed in as ${user.email || user.uid}.`
+      : describeFirebaseError(err), 'error');
+    return;
+  }
+  if (typeof sub.source !== 'string' || typeof sub.content !== 'string') {
+    showReviewMessage('This submission has no script in it.', 'error');
+    return;
+  }
+
+  // The default example loads asynchronously: let it land first so it
+  // can't replace the submission's source
+  await defaultExampleReady;
+  if (seq !== reviewSeq) return;
+  reviewSub = sub;
+  reviewEditorLoaded = true;
+  stopScript(true);
+  loadEditorScript(sub.source, reviewFileName(sub));
+  const minified = await ensureMinified();
+  if (seq !== reviewSeq) return;
+  const freshMinify = minified ? editorMinified.value : null;
+  // The Minified tab (and Run minified) show what was submitted, until the
+  // source is edited and minified again
+  if (minified) {
+    editorMinified.value = sub.content;
+    updateSizeMeter();
+  }
+  renderReview(sub, { isAdmin, isOwner: sub.uid === user.uid, freshMinify });
+  log(`Review: opened "${sub.name}" v${sub.versionMajor}.${sub.versionMinor} by ${sub.developerName} (${STORE_STATUS_LABELS[sub.status] || sub.status}).`);
+  runReviewContent();
+}
+
+function renderReview(sub, { isAdmin, isOwner, freshMinify }) {
+  reviewKind.textContent = isAdmin && !isOwner ? 'Review' : 'Your submission';
+  reviewTitle.textContent = `${sub.name} v${sub.versionMajor}.${sub.versionMinor}`;
+  reviewStatus.textContent = STORE_STATUS_LABELS[sub.status] || sub.status;
+  reviewStatus.className = `store-status store-status-${sub.status}`;
+  reviewStatus.hidden = false;
+
+  const meta = [`${sub.developerName} <${sub.contactEmail}>`];
+  if (STORE_CATEGORIES[sub.category]) meta.push(STORE_CATEGORIES[sub.category]);
+  const when = formatTimestamp(sub.createdAt);
+  if (when) meta.push(`submitted ${when}`);
+  reviewMeta.textContent = meta.join(' · ');
+  reviewMeta.hidden = false;
+
+  // The checks the review app also shows; the emulator can re-minify itself
+  const checks = [];
+  const contentBytes = utf8Length(sub.content);
+  checks.push([contentBytes <= FORGE_SCRIPT_BYTE_LIMIT,
+    `Submitted script is ${contentBytes} / ${FORGE_SCRIPT_BYTE_LIMIT} bytes`
+    + (sub.contentBytes !== contentBytes ? ` (the submission says ${sub.contentBytes})` : '')]);
+  if (freshMinify === null) {
+    checks.push([false, 'The source doesn\'t minify (see the log), so the submitted script can\'t be checked against it']);
+  } else {
+    checks.push([freshMinify === sub.content, freshMinify === sub.content
+      ? 'Submitted script matches a fresh minify of the source'
+      : 'Submitted script differs from a fresh minify of the source: the watch would run the submitted script, not the source shown here. The Minified tab shows the submitted script; compare it with Run source.']);
+  }
+  checks.push([/^[ -~]{1,20}$/.test(sub.name), /^[ -~]{1,20}$/.test(sub.name)
+    ? 'Name is 1-20 printable ASCII characters'
+    : 'Name isn\'t 1-20 printable ASCII characters']);
+  if (sub.content.includes('\0') || sub.source.includes('\0')) {
+    checks.push([false, 'Script contains a NUL character, which ends it early on the watch']);
+  }
+  reviewChecks.replaceChildren(...checks.map(([ok, text]) => createEl('li', ok ? 'review-check-ok' : 'review-check-fail', text)));
+  reviewChecks.hidden = false;
+
+  const fields = [
+    ['Summary', sub.summary],
+    ['Description', sub.description],
+    ['Tags', (sub.tags || []).join(', ') || '(none)'],
+    ['Terms', sub.termsVersion],
+  ];
+  if (sub.reviewNotes) fields.push(['Reviewer notes', sub.reviewNotes]);
+  if (sub.reviewedAt) fields.push(['Reviewed', formatTimestamp(sub.reviewedAt)]);
+  reviewListingFields.replaceChildren(...fields.flatMap(([k, v]) => [createEl('dt', null, k), createEl('dd', null, v || '')]));
+  reviewListing.hidden = false;
+
+  showReviewMessage('');
+  reviewRunContentBtn.hidden = false;
+  reviewRunSourceBtn.hidden = false;
+  reviewSigninBtn.hidden = true;
+}
+
+function runReviewContent() {
+  if (!reviewSub) return;
+  log('Review: running the submitted script (what the store sends to watches).');
+  warnIfOverByteLimit(reviewSub.content, FORGE_SCRIPT_MINIFIED_BYTE_LIMIT_WARNING);
+  runScript(reviewSub.content);
+}
+
+reviewRunContentBtn.addEventListener('click', runReviewContent);
+reviewRunSourceBtn.addEventListener('click', () => {
+  log('Review: running the source in the editor.');
+  warnIfOverByteLimit(editor.value, FORGE_SCRIPT_BYTE_LIMIT_WARNING);
+  runScript(editor.value);
+});
+reviewSigninBtn.addEventListener('click', () => {
+  const id = new URL(location.href).searchParams.get(REVIEW_PARAM);
+  if (firebase.auth().currentUser) startReview(id);
+  else openReviewSignin(id);
+});
+
+reviewExitBtn.addEventListener('click', async () => {
+  if (reviewSub && editor.value !== reviewSub.source
+      && !confirm('Exit review? Your changes to the source in the editor will be lost.')) return;
+  const loaded = reviewEditorLoaded;
+  reviewSeq++;
+  reviewSub = null;
+  reviewEditorLoaded = false;
+  reviewBanner.hidden = true;
+  setReviewUrl(null);
+  if (loaded) {
+    stopScript(true);
+    await loadDefaultExampleScript();
+    setActiveTab('original');
+    log('Review: closed.');
+  }
+});
+
+// Called from Open under My submissions
+function openOwnSubmission(sub) {
+  const label = `"${sub.name}" v${sub.versionMajor}.${sub.versionMinor}`;
+  if (!confirm(`Open ${label}? Its source replaces the script in the editor.`)) return;
+  uploadDialog.close();
+  startReview(sub.id);
+}
+
+const initialReviewId = new URL(location.href).searchParams.get(REVIEW_PARAM);
+if (initialReviewId !== null) startReview(initialReviewId);
 
 // The watch's L/M/A/T/P keys (app.js) shouldn't fire while the dialog is
 // open, e.g. with focus on one of its buttons. This capture listener runs
