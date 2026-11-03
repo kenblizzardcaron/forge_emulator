@@ -246,18 +246,50 @@ button:disabled { opacity: 0.4; cursor: default; }
 .status.stopped { background: #3d2b1f; color: #e0b57e; }
 .status.error { background: #3d1f1f; color: #e07e7e; }
 
-#editor, #editor-minified {
+/* Syntax highlighting (js/codeHighlight.js): the textarea's text is
+   transparent over a <pre> with the same box, font and wrapping. Change one
+   of these and the other must match, or the caret drifts from the text. */
+.code-editor { position: relative; }
+.code-editor:has(> textarea[hidden]) { display: none; }
+#editor, #editor-minified, .code-editor-highlight {
+  box-sizing: border-box;
   width: 100%;
-  height: 360px;
-  background: #101114;
-  color: #d7dae0;
+  margin: 0;
   border: 1px solid #33363d;
   border-radius: 6px;
+  padding: 10px;
   font-family: "SF Mono", Menlo, Consolas, monospace;
   font-size: 13px;
-  padding: 10px;
+  line-height: 1.45;
+  font-variant-ligatures: none;
+  tab-size: 8;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+#editor, #editor-minified {
+  position: relative;
+  display: block;
+  height: 360px;
+  background: transparent;
+  color: transparent;
+  caret-color: #e6e6e6;
   resize: vertical;
 }
+#editor::selection, #editor-minified::selection { background: rgba(126, 176, 224, 0.35); color: transparent; }
+.code-editor-highlight {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: #101114;
+  color: #d7dae0;
+}
+.tok-com { color: #6a9955; }
+.tok-str { color: #ce9178; }
+.tok-num { color: #b5cea8; }
+.tok-kw { color: #c586c0; }
+.tok-api { color: #F87029; }
 
 /* Script size vs FORGE_SCRIPT_BYTE_LIMIT, under the source editor. */
 .size-meter {
