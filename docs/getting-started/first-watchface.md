@@ -125,3 +125,5 @@ the editor shows how many of the watch's 8158 bytes it uses.
 
 - Learn when each hook runs: [Lifecycle](../concepts/lifecycle.md).
 - See what the display can show: [Display](../concepts/display.md).
+- Put it on your watch: [Deploying to your watch](../guides/deploying-to-watch.md).
+- Share it: [Publishing to the Forge App Store](../guides/publishing.md).

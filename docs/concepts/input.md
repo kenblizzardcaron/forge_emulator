@@ -71,6 +71,11 @@ In the emulator, hold several keys (`a` + `l`) to test combos.
 
 In the emulator these are the **TILT** and **TAP** buttons (keys `t` and `p`).
 
+Don't make a gesture the only way to do something. The user can turn gestures
+off, and they can be missed or set off by ordinary movement, so every core
+feature should also work with A and L. Store apps are reviewed for this (see
+[Publishing](../guides/publishing.md#make-every-feature-work-with-the-buttons)).
+
 ## Bluetooth: `ble_rx(data)`
 
 A phone app can write to the watch's **Forge BLE service**:

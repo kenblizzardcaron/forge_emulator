@@ -48,3 +48,9 @@ the file in the app under **Settings > Forge Apps > Load from file**.
 - `init()` runs right away, and again each time the watch boots.
 - The face shows its slot name (`FA`, `FB` or `FC`) on the weekday digits
   while it's on screen.
+
+## Sharing it
+
+To let other Ollee Watch owners install your face, submit it to the Forge App
+Store from the same Upload dialog. See
+[Publishing to the Forge App Store](publishing.md).

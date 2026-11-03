@@ -11,7 +11,7 @@ toolchain to install. Write a short script against the simple `Ollee` API (by ha
 or with an AI agent), test it in this browser emulator, then upload it to your watch.
 
 Status:
-- **Beta 2**: Emulator, plus uploading faces to the watch through the Ollee Watch app.
+- **Beta 2**: Emulator, plus uploading faces to the watch through the Ollee Watch app, and submitting them to the Forge App Store.
 
 <!-- TODO: screenshot or GIF of the emulator running a watchface -->
 
@@ -36,6 +36,7 @@ Status:
 - 🤖 [Building with AI agents](docs/getting-started/using-ai-agents.md)
 - 📐 [How watchfaces work](docs/concepts/architecture.md)
 - 📚 [API reference](docs/api/README.md)
+- 🏪 [Publishing to the Forge App Store](docs/guides/publishing.md)
 - 💡 [Examples](examples/)
 - 📖 [All docs](docs/index.md)
 

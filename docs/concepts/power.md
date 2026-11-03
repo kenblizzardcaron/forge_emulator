@@ -25,6 +25,9 @@ and `Ollee.setInterval` (up to 60000 ms) run on a 1 ms scheduler that keeps a
 high-power timer going for as long as the timer exists, so even
 `Ollee.setInterval(fn, 1000)` costs much more than `clock_second()`.
 
+Reviewers check this for every app submitted to the Forge App Store. See
+[Publishing](../guides/publishing.md#let-events-drive-your-face-not-timers).
+
 ## Habits
 
 - **Only run timers while they're needed.** Start fast timers when the user
