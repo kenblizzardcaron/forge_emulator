@@ -70,6 +70,7 @@
       <section id="review-banner" class="review-banner" aria-labelledby="review-title" hidden>
         <div class="review-head">
           <span id="review-kind" class="review-kind">Review</span>
+          <img id="review-icon" class="review-icon" alt="App icon" width="32" height="32" hidden>
           <h2 id="review-title" class="review-title"></h2>
           <span id="review-status" class="store-status" hidden></span>
         </div>
@@ -226,6 +227,19 @@
       <label for="store-description">Description <span id="store-description-count" class="upload-count"></span></label>
       <textarea id="store-description" maxlength="2000" rows="5" required></textarea>
       <span class="upload-note">What it shows and what each button does.</span>
+      <span class="store-field-label" id="store-icon-heading">Icon</span>
+      <div class="store-icon" role="group" aria-labelledby="store-icon-heading">
+        <img id="store-icon-preview" class="store-icon-preview" alt="App icon" width="64" height="64" hidden>
+        <div class="store-icon-info">
+          <span id="store-icon-label" class="store-icon-label">Loading…</span>
+          <div class="store-icon-actions">
+            <button type="button" id="store-icon-choose-btn" class="upload-link-btn">Choose image…</button>
+            <button type="button" id="store-icon-default-btn" class="upload-link-btn" hidden>Use the default</button>
+          </div>
+        </div>
+        <input type="file" id="store-icon-file" accept="image/png,image/jpeg,.png,.jpg,.jpeg" hidden>
+      </div>
+      <span class="upload-note">512 &times; 512 pixels, PNG or JPG, up to 200 KB. Shown with your app in the store.</span>
       <div class="upload-sizes">
         <span>Minified (sent to the watch)</span><span id="store-content-size"></span>
         <span>Original source</span><span id="store-source-size"></span>

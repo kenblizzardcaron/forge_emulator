@@ -414,6 +414,15 @@ button:disabled { opacity: 0.4; cursor: default; }
 .store-sub-notes { margin: 6px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .store-sub .upload-link-btn { margin-top: 6px; }
 .store-sub .store-sub-open { margin-right: 14px; }
+.upload-form .store-field-label { font-size: 13px; color: #9aa0a6; margin-top: 4px; }
+.store-icon { display: flex; align-items: center; gap: 12px; }
+.store-icon-preview, .store-sub-icon, .review-icon { border-radius: 8px; background: #2a2c31; object-fit: cover; flex: none; }
+.store-icon-preview[hidden], .review-icon[hidden] { display: none; }
+.store-icon-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.store-icon-label { overflow-wrap: anywhere; }
+.store-icon-actions { display: flex; gap: 14px; flex-wrap: wrap; }
+.store-icon-actions [hidden] { display: none; }
+.store-sub-title { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .store-status { flex: none; padding: 1px 8px; border-radius: 10px; font-size: 12px; background: #1f2b3d; color: #7eb0e0; }
 .store-status-approved { background: #1f3d2b; color: #7ee08a; }
 .store-status-changes_requested { background: #3d331f; color: #e0c07e; }

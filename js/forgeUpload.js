@@ -17,7 +17,7 @@
 // Uploading the same name again replaces the entry. The write merges, so
 // fields added later (sharing, ratings) survive a re-upload.
 //
-// App Store submission (rules.txt, "Forge App Store submission proposal.md"):
+// App Store submission (rules.txt):
 //   developers/{uid}: developerName (public, <= 40), contactEmail (private,
 //     <= 254), createdAt, updatedAt. Prefills the form; written on submit.
 //   storeSubmissions/{uid}_{forgeAppDocId(name)}_{major}_{minor}: one per
@@ -25,10 +25,13 @@
 //     contentBytes, source as above, plus appSlug, developerName and
 //     contactEmail (copied from the profile), summary (<= 120), description
 //     (<= 2000), category (STORE_CATEGORIES), tags (<= 5 of <= 20),
-//     termsVersion, status ('pending', then
+//     icon (bytes: a 512 x 512 PNG or JPEG file of <= 200 KB, as chosen;
+//     the default is ollee-forge-logo-icon-light.png) and iconType
+//     ('image/png' / 'image/jpeg'), termsVersion, status ('pending', then
 //     'withdrawn' by the developer or 'approved' / 'changes_requested' /
 //     'rejected' by an admin, with reviewNotes), createdAt, updatedAt.
-//   storeApps/{slug}: the approved catalogue, written only by admins. If it
+//   storeApps/{slug}: the approved catalogue entry, written only by admins,
+//     with the minified script in storeApps/{slug}/release/current. If it
 //     exists, only its ownerUid can submit under that name.
 //
 // Access is enforced by the Firestore rules (users/{uid}/** is owner-only),
@@ -61,6 +64,12 @@ const STORE_SUMMARY_LEN = 120;
 const STORE_DESCRIPTION_LEN = 2000;
 const STORE_TAGS_MAX = 5;
 const STORE_TAG_LEN = 20;
+// The app icon is stored as the file itself (Firestore bytes, no
+// re-encoding). Its dimensions are checked here and in the review app; the
+// rules check the byte size and type.
+const STORE_ICON_PX = 512;
+const STORE_ICON_MAX_BYTES = 200 * 1024;
+const STORE_ICON_DEFAULT_URL = 'ollee-forge-logo-icon-light.png';
 // Which wording of the submission checkbox the developer agreed to. Bump it
 // when the wording (or a linked terms page) changes.
 const STORE_TERMS_VERSION = '2026-11-beta2';
@@ -115,6 +124,11 @@ const storeDescriptionCount = document.getElementById('store-description-count')
 const storeContentSize = document.getElementById('store-content-size');
 const storeSourceSize = document.getElementById('store-source-size');
 const storeTerms = document.getElementById('store-terms');
+const storeIconPreview = document.getElementById('store-icon-preview');
+const storeIconLabel = document.getElementById('store-icon-label');
+const storeIconChooseBtn = document.getElementById('store-icon-choose-btn');
+const storeIconDefaultBtn = document.getElementById('store-icon-default-btn');
+const storeIconFile = document.getElementById('store-icon-file');
 const storeSubmitBtn = document.getElementById('store-submit-btn');
 const storeSubsNote = document.getElementById('store-subs-note');
 const storeSubsList = document.getElementById('store-subs');
@@ -564,6 +578,9 @@ function storeProblem() {
   if (longTag) return `Tags can be at most ${STORE_TAG_LEN} characters: "${longTag}".`;
   if (!storeSummary.value.trim()) return 'Enter a one-line summary.';
   if (!storeDescription.value.trim()) return 'Enter a description.';
+  if (!storeIcon) {
+    return storeIconLoading ? 'Still loading the icon. Try again in a moment.' : 'Choose an icon for your app.';
+  }
   if (!storeTerms.checked) return 'Tick the box to confirm you can share this app.';
   return null;
 }
@@ -616,6 +633,8 @@ function fillStore(user) {
   storeDescription.value = prefs.description || '';
   storeTerms.checked = false;
   storeProfileTouched = false;
+  storeIconTouched = false;
+  autoStoreIcon();
   fillStoreProfile(user);
   showSizes(storeContentSize, storeSourceSize);
   updateStoreState();
@@ -639,6 +658,7 @@ async function loadStoreAccount(user) {
     storeSubs.sort((a, b) => storeSubTime(b) - storeSubTime(a));
     prefillFromLastSubmission();
     bumpSuggestedVersion();
+    if (!storeIconTouched) autoStoreIcon();
     renderStoreSubs();
   } catch (err) {
     if (storeUser !== user.uid) return;
@@ -689,6 +709,150 @@ function prefillFromLastSubmission() {
   updateStoreState();
 }
 
+// --- App icon ---
+
+// { bytes: Uint8Array, type, label, from: 'default' | 'file' | submission id }
+// or null while the default loads (or if it couldn't)
+let storeIcon = null;
+let storeIconLoading = false;
+// Set once the developer chooses a file or the default, so the automatic
+// choice (autoStoreIcon) stops replacing it
+let storeIconTouched = false;
+// Bumped on every change, so a slow default fetch or file read can't
+// overwrite a newer choice
+let storeIconSeq = 0;
+let storeIconPreviewUrl = null;
+let storeIconDefaultBytes = null;  // promise of the default icon file
+
+const ICON_RULE_TEXT = `The icon has to be a ${STORE_ICON_PX} × ${STORE_ICON_PX} pixel PNG or JPG of up to ${STORE_ICON_MAX_BYTES / 1024} KB.`;
+
+function iconTypeOf(bytes) {
+  const png = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  if (bytes.length > png.length && png.every((b, i) => bytes[i] === b)) return 'image/png';
+  if (bytes.length > 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'image/jpeg';
+  return null;
+}
+
+function iconTypeName(type) {
+  return type === 'image/jpeg' ? 'JPG' : 'PNG';
+}
+
+function kbText(bytes) {
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
+// Decodes the image, which also proves it isn't corrupt
+function imageDimensions(bytes, type) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(new Blob([bytes], { type }));
+    const img = new Image();
+    img.onload = () => { URL.revokeObjectURL(url); resolve({ width: img.naturalWidth, height: img.naturalHeight }); };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('not an image')); };
+    img.src = url;
+  });
+}
+
+// Returns null if the icon file is fine, or what's wrong with it
+async function iconProblem(bytes, type) {
+  if (!type) return 'isn\'t a PNG or JPG file';
+  if (bytes.length > STORE_ICON_MAX_BYTES) return `is ${kbText(bytes.length)}, over the ${kbText(STORE_ICON_MAX_BYTES)} limit`;
+  let size;
+  try { size = await imageDimensions(bytes, type); } catch (e) { return 'couldn\'t be read as an image'; }
+  if (size.width !== STORE_ICON_PX || size.height !== STORE_ICON_PX) {
+    return `is ${size.width} × ${size.height} pixels, not ${STORE_ICON_PX} × ${STORE_ICON_PX}`;
+  }
+  return null;
+}
+
+function setStoreIcon(icon) {
+  storeIconSeq++;
+  storeIcon = icon;
+  storeIconLoading = false;
+  if (storeIconPreviewUrl) URL.revokeObjectURL(storeIconPreviewUrl);
+  storeIconPreviewUrl = icon ? URL.createObjectURL(new Blob([icon.bytes], { type: icon.type })) : null;
+  storeIconPreview.hidden = !icon;
+  if (icon) storeIconPreview.src = storeIconPreviewUrl;
+  else storeIconPreview.removeAttribute('src');
+  storeIconLabel.textContent = icon
+    ? `${icon.label} (${iconTypeName(icon.type)}, ${kbText(icon.bytes.length)})`
+    : 'Couldn\'t load the default icon. Choose an image.';
+  storeIconDefaultBtn.hidden = !icon || icon.from === 'default';
+}
+
+function loadDefaultIconBytes() {
+  if (!storeIconDefaultBytes) {
+    storeIconDefaultBytes = fetch(STORE_ICON_DEFAULT_URL)
+      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); })
+      .then((buf) => new Uint8Array(buf));
+    storeIconDefaultBytes.catch(() => { storeIconDefaultBytes = null; });  // retry next time
+  }
+  return storeIconDefaultBytes;
+}
+
+async function useDefaultIcon() {
+  const seq = ++storeIconSeq;
+  storeIconLoading = true;
+  if (!storeIcon) storeIconLabel.textContent = 'Loading…';
+  let bytes = null;
+  try { bytes = await loadDefaultIconBytes(); } catch (e) { /* shown by setStoreIcon(null) */ }
+  if (seq !== storeIconSeq) return;
+  setStoreIcon(bytes ? { bytes, type: 'image/png', label: 'Default Forge icon', from: 'default' } : null);
+}
+
+// A submission's icon (a Firestore Blob), or null if it has none
+function iconFromSub(sub) {
+  if (!sub.icon || !sub.icon.toUint8Array || !sub.iconType) return null;
+  return { bytes: sub.icon.toUint8Array(), type: sub.iconType, label: `Icon from v${sub.versionMajor}.${sub.versionMinor}`, from: sub.id };
+}
+
+// Until the developer picks one: the icon of the submission opened from My
+// submissions, else of the newest submitted version of this app name, else
+// the default
+function autoStoreIcon() {
+  const slug = forgeAppDocId(storeName.value.trim());
+  const user = firebase.auth().currentUser;
+  let icon = null;
+  if (reviewSub && user && reviewSub.uid === user.uid && reviewSub.appSlug === slug) icon = iconFromSub(reviewSub);
+  if (!icon && storeSubs) {
+    const last = storeSubs.find((s) => s.appSlug === slug && iconFromSub(s));
+    if (last) icon = iconFromSub(last);
+  }
+  if (icon) {
+    if (!storeIcon || storeIcon.from !== icon.from) setStoreIcon(icon);
+  } else if (!storeIcon || storeIcon.from !== 'default') {
+    useDefaultIcon();
+  }
+}
+
+storeIconChooseBtn.addEventListener('click', () => storeIconFile.click());
+storeIconDefaultBtn.addEventListener('click', () => {
+  storeIconTouched = true;
+  showUploadMessage('');
+  useDefaultIcon();
+});
+storeIconFile.addEventListener('change', async () => {
+  const file = storeIconFile.files[0];
+  storeIconFile.value = '';  // so choosing the same file again fires change
+  if (!file) return;
+  showUploadMessage('');
+  // Checked before reading, so a huge file isn't loaded just to refuse it
+  if (file.size > STORE_ICON_MAX_BYTES) {
+    showUploadMessage(`"${file.name}" is ${kbText(file.size)}, over the ${kbText(STORE_ICON_MAX_BYTES)} limit. ${ICON_RULE_TEXT}`, 'error');
+    return;
+  }
+  const seq = storeIconSeq;
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const problem = await iconProblem(bytes, iconTypeOf(bytes));
+  if (seq !== storeIconSeq) return;  // something else was chosen meanwhile
+  if (problem) {
+    showUploadMessage(`"${file.name}" ${problem}. ${ICON_RULE_TEXT}`, 'error');
+    return;
+  }
+  storeIconTouched = true;
+  setStoreIcon({ bytes, type: iconTypeOf(bytes), label: file.name, from: 'file' });
+});
+storeName.addEventListener('input', () => { if (!storeIconTouched) autoStoreIcon(); });
+
 // Apps whose older versions are expanded, kept across re-renders (e.g.
 // after a delete inside the list)
 const storeOpenApps = new Set();
@@ -726,8 +890,18 @@ function renderStoreSubs() {
 function storeSubItem(sub) {
   const item = createEl('div', 'store-sub');
   const head = createEl('div', 'store-sub-head');
+  const title = createEl('span', 'store-sub-title');
+  if (sub.icon && sub.icon.toBase64 && sub.iconType) {
+    const img = createEl('img', 'store-sub-icon');
+    img.width = 24;
+    img.height = 24;
+    img.alt = '';
+    img.src = `data:${sub.iconType};base64,${sub.icon.toBase64()}`;
+    title.append(img);
+  }
+  title.append(createEl('span', 'store-sub-name', `${sub.name} v${sub.versionMajor}.${sub.versionMinor}`));
   head.append(
-    createEl('span', 'store-sub-name', `${sub.name} v${sub.versionMajor}.${sub.versionMinor}`),
+    title,
     createEl('span', `store-status store-status-${sub.status}`, STORE_STATUS_LABELS[sub.status] || sub.status),
   );
   item.append(head);
@@ -838,6 +1012,8 @@ storeForm.addEventListener('submit', async (e) => {
   const summary = storeSummary.value.trim();
   const description = storeDescription.value.trim();
   const contentBytes = utf8Length(uploadContent);
+  const icon = firebase.firestore.Blob.fromUint8Array(storeIcon.bytes);
+  const iconType = storeIcon.type;
   const db = firebase.firestore();
   const subRef = db.collection('storeSubmissions').doc(id);
   const devRef = db.collection('developers').doc(user.uid);
@@ -873,6 +1049,8 @@ storeForm.addEventListener('submit', async (e) => {
         description,
         category,
         tags,
+        icon,
+        iconType,
         termsVersion: STORE_TERMS_VERSION,
         status: 'pending',
         createdAt: now,
@@ -883,7 +1061,7 @@ storeForm.addEventListener('submit', async (e) => {
     const createdAt = firebase.firestore.Timestamp.now();
     storeSubs.unshift({
       id, uid: user.uid, appSlug: slug, name, versionMajor: major, versionMinor: minor,
-      category, tags, summary, description, status: 'pending', createdAt, updatedAt: createdAt,
+      category, tags, summary, description, icon, iconType, status: 'pending', createdAt, updatedAt: createdAt,
     });
     renderStoreSubs();
     saveStorePrefs(getFileName(), { name, major, minor, category, tags, summary, description });
@@ -913,6 +1091,7 @@ storeForm.addEventListener('submit', async (e) => {
 
 const reviewBanner = document.getElementById('review-banner');
 const reviewKind = document.getElementById('review-kind');
+const reviewIcon = document.getElementById('review-icon');
 const reviewTitle = document.getElementById('review-title');
 const reviewStatus = document.getElementById('review-status');
 const reviewMeta = document.getElementById('review-meta');
@@ -948,6 +1127,7 @@ function showReviewShell(id) {
   reviewSub = null;
   reviewBanner.hidden = false;
   reviewKind.textContent = 'Review';
+  reviewIcon.hidden = true;
   reviewTitle.textContent = `Submission ${id}`;
   reviewStatus.hidden = true;
   reviewMeta.hidden = true;
@@ -1057,13 +1237,29 @@ async function startReview(id) {
     editorMinified.value = sub.content;
     updateSizeMeter();
   }
-  renderReview(sub, { isAdmin, isOwner: sub.uid === user.uid, freshMinify });
+  const iconCheck = await subIconCheck(sub);
+  if (seq !== reviewSeq) return;
+  renderReview(sub, { isAdmin, isOwner: sub.uid === user.uid, freshMinify, iconCheck });
   log(`Review: opened "${sub.name}" v${sub.versionMajor}.${sub.versionMinor} by ${sub.developerName} (${STORE_STATUS_LABELS[sub.status] || sub.status}).`);
   runReviewContent();
 }
 
-function renderReview(sub, { isAdmin, isOwner, freshMinify }) {
+// [ok, text] for the review banner's checks
+async function subIconCheck(sub) {
+  if (!sub.icon || !sub.icon.toUint8Array) return [false, 'No icon (submitted before icons were required)'];
+  const bytes = sub.icon.toUint8Array();
+  const type = iconTypeOf(bytes);
+  if (type !== sub.iconType) return [false, `Icon file is ${type ? iconTypeName(type) : 'not a PNG or JPG'}, but the submission says ${sub.iconType}`];
+  const problem = await iconProblem(bytes, type);
+  return problem
+    ? [false, `Icon ${problem}`]
+    : [true, `Icon is ${STORE_ICON_PX} × ${STORE_ICON_PX} ${iconTypeName(type)}, ${kbText(bytes.length)}`];
+}
+
+function renderReview(sub, { isAdmin, isOwner, freshMinify, iconCheck }) {
   reviewKind.textContent = isAdmin && !isOwner ? 'Review' : 'Your submission';
+  reviewIcon.hidden = !(sub.icon && sub.icon.toBase64 && sub.iconType);
+  if (!reviewIcon.hidden) reviewIcon.src = `data:${sub.iconType};base64,${sub.icon.toBase64()}`;
   reviewTitle.textContent = `${sub.name} v${sub.versionMajor}.${sub.versionMinor}`;
   reviewStatus.textContent = STORE_STATUS_LABELS[sub.status] || sub.status;
   reviewStatus.className = `store-status store-status-${sub.status}`;
@@ -1095,6 +1291,7 @@ function renderReview(sub, { isAdmin, isOwner, freshMinify }) {
   if (sub.content.includes('\0') || sub.source.includes('\0')) {
     checks.push([false, 'Script contains a NUL character, which ends it early on the watch']);
   }
+  checks.push(iconCheck);
   reviewChecks.replaceChildren(...checks.map(([ok, text]) => createEl('li', ok ? 'review-check-ok' : 'review-check-fail', text)));
   reviewChecks.hidden = false;
 
