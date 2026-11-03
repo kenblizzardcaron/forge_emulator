@@ -588,8 +588,25 @@ function fillStore(user) {
     storeSubsList.replaceChildren();
   }
   const fileName = getFileName();
-  const prefs = loadStorePrefs()[fileName] || {};
+  let prefs = loadStorePrefs()[fileName] || {};
   const uploadPrefs = loadUploadPrefs()[fileName] || {};
+  // One of your own submissions opened from My submissions (review mode),
+  // not yet resubmitted from this file: start from its listing and the next
+  // version, so a resubmission after "changes requested" is just a click
+  storeVersionSuggestedFor = null;
+  if (!loadStorePrefs()[fileName] && reviewSub && reviewSub.uid === user.uid) {
+    const [major, minor] = nextVersion(reviewSub.versionMajor, reviewSub.versionMinor);
+    prefs = {
+      name: reviewSub.name,
+      major,
+      minor,
+      category: reviewSub.category,
+      tags: reviewSub.tags,
+      summary: reviewSub.summary,
+      description: reviewSub.description,
+    };
+    storeVersionSuggestedFor = reviewSub.appSlug;
+  }
   storeName.value = prefs.name || uploadPrefs.name || asciiAppName(fileName.replace(/\.js$/i, '')) || 'My Forge App';
   storeMajor.value = prefs.major ?? uploadPrefs.major ?? 1;
   storeMinor.value = prefs.minor ?? uploadPrefs.minor ?? 0;
@@ -621,12 +638,41 @@ async function loadStoreAccount(user) {
     storeSubs = subsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
     storeSubs.sort((a, b) => storeSubTime(b) - storeSubTime(a));
     prefillFromLastSubmission();
+    bumpSuggestedVersion();
     renderStoreSubs();
   } catch (err) {
     if (storeUser !== user.uid) return;
     storeSubsError = describeFirebaseError(err);
     storeSubsNote.textContent = `Couldn't load your submissions: ${storeSubsError}`;
   }
+}
+
+// The version after major.minor (1.9 -> 1.10, 1.99 -> 2.0)
+function nextVersion(major, minor) {
+  if (minor < FORGE_APP_VERSION_PART_MAX) return [major, minor + 1];
+  if (major < FORGE_APP_VERSION_PART_MAX) return [major + 1, 0];
+  return [major, minor];
+}
+
+// The app whose version fillStore suggested (from an opened submission),
+// until the developer edits the version. Once the submissions load, the
+// suggestion moves past the newest version already submitted, e.g. when
+// v1.2 was opened but v1.3 already exists.
+let storeVersionSuggestedFor = null;
+
+function bumpSuggestedVersion() {
+  if (!storeVersionSuggestedFor) return;
+  const taken = storeSubs.filter((s) => s.appSlug === storeVersionSuggestedFor);
+  if (!taken.length) return;
+  const newest = taken.reduce((a, b) => (a.versionMajor * 100 + a.versionMinor >= b.versionMajor * 100 + b.versionMinor ? a : b));
+  const suggested = (parseVersionPart(storeMajor.value) ?? 0) * 100 + (parseVersionPart(storeMinor.value) ?? 0);
+  if (suggested > newest.versionMajor * 100 + newest.versionMinor) return;
+  const [major, minor] = nextVersion(newest.versionMajor, newest.versionMinor);
+  storeMajor.value = major;
+  storeMinor.value = minor;
+}
+for (const input of [storeMajor, storeMinor]) {
+  input.addEventListener('input', () => { storeVersionSuggestedFor = null; });
 }
 
 // A new version of an app already submitted (from another browser, or with
