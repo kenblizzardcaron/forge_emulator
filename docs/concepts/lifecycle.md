@@ -118,6 +118,28 @@ function exit() {
 }
 ```
 
+- **A cancelled callback never runs, and your globals survive.** Timers are
+  cancelled right after `exit()`, and the script's variables keep their values
+  until the face is entered again. If a timer was going to reset some state,
+  reset it yourself in `exit()` or `enter()`. Otherwise a face that is left
+  mid-animation can come back stuck:
+
+```js
+var busy = 0;
+
+function a_short() {
+  if (busy) return;                 // ignored while an animation runs
+  busy = 1;
+  Ollee.led_on();
+  Ollee.setTimeout(function () { Ollee.led_off(); busy = 0; }, 500);
+}
+
+function exit() {
+  busy = 0;          // the timer that clears it is about to be cancelled
+  Ollee.led_off();   // so is the one that turns the LED off
+}
+```
+
 - `Ollee.clearTimeout()` / `Ollee.clearInterval()` with no argument clears
   every slot.
 

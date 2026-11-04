@@ -130,7 +130,10 @@ See [Input](../concepts/input.md#bluetooth-ble_rxdata).
 ### Timers
 
 4 slots shared by timeouts and intervals. All are cancelled when the face
-leaves the screen. See [Lifecycle](../concepts/lifecycle.md#timers).
+leaves the screen, right after `exit()` runs. A callback that would have reset
+some state (a `busy` flag, an LED to switch off) then never runs, and your
+globals keep their values until the face is entered again, so reset that state
+in `exit()` or `enter()`. See [Lifecycle](../concepts/lifecycle.md#timers).
 
 | Call | Does |
 | --- | --- |
