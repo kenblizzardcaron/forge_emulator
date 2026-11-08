@@ -175,6 +175,8 @@ Under **Upload > Submit to App Store > My submissions** you can see each
 version you've submitted and its status. Ollee also emails your contact
 address when a submission has been reviewed.
 
+> **Note:** A review typically takes about a week from submission.
+
 | Status | What it means | What you can do |
 | --- | --- | --- |
 | Waiting for review | In the queue | **Withdraw** it, for example to submit a fix instead |
